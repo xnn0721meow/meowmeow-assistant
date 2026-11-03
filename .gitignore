@@ -1,0 +1,22 @@
+node_modules/
+out/
+release/
+dist/
+.dev-data/
+.env
+.env.*
+*.log
+*.db
+*.db-journal
+*.tsbuildinfo
+.DS_Store
+
+# User-supplied Live2D assets (models and Cubism Core are not redistributed)
+src/renderer/public/live2d/models/*
+!src/renderer/public/live2d/models/.gitkeep
+src/renderer/public/live2d/core/*
+!src/renderer/public/live2d/core/.gitkeep
+
+# Local recordings / screenshots
+captures/
+*.mp4
