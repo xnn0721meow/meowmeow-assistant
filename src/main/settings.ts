@@ -11,6 +11,10 @@ const DEFAULTS: AppSettings = {
   allowedApps: [
     'code',
     'cursor',
+    'trae',
+    'pycharm',
+    'idea',
+    'webstorm',
     'obsidian',
     'notion',
     'zotero',
