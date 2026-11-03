@@ -67,7 +67,7 @@ export class ActivityProbe {
     }
 
     try {
-      const scriptPath = join(app.getPath('temp'), 'focus-mascot-active-window.ps1')
+      const scriptPath = join(app.getPath('temp'), 'meowmeow-active-window.ps1')
       writeFileSync(scriptPath, SCRIPT, 'utf8')
 
       this.process = spawn(

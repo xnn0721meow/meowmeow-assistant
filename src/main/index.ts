@@ -9,7 +9,7 @@ import { loadSettings, saveSettings, sanitizeSettings } from './settings'
 
 // Development-only escape hatch for sandboxed environments where the default
 // AppData directory is not writable. Production uses Electron's default path.
-const customUserData = process.env['FOCUS_MASCOT_USER_DATA']
+const customUserData = process.env['MEOWMEOW_USER_DATA']
 if (customUserData) {
   mkdirSync(customUserData, { recursive: true })
   app.setPath('userData', customUserData)
@@ -154,7 +154,7 @@ function createSettingsWindow(): BrowserWindow {
     height: 720,
     minWidth: 760,
     minHeight: 600,
-    title: 'Focus Mascot 设置',
+    title: '喵喵助手 设置',
     autoHideMenuBar: true,
     backgroundColor: '#111318',
     show: false,
@@ -243,7 +243,7 @@ function rebuildTrayMenu(): void {
 function createTray(): void {
   const icon = nativeImage.createFromPath(resourcePath('icon.png'))
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon.resize({ width: 16, height: 16 }))
-  tray.setToolTip('Focus Mascot')
+  tray.setToolTip('喵喵助手')
   tray.on('click', toggleAvatarWindow)
   rebuildTrayMenu()
 }
@@ -306,7 +306,7 @@ function registerIpc(): void {
 async function bootstrap(): Promise<void> {
   settings = loadSettings()
 
-  app.setAppUserModelId('dev.focusmascot.app')
+  app.setAppUserModelId('dev.meowmeow.assistant')
 
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media')

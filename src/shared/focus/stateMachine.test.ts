@@ -33,7 +33,7 @@ function snapshot(timestamp: number, overrides: Partial<SignalSnapshot> = {}): S
     vision: vision({ timestamp }),
     activity: {
       appName: 'Code',
-      windowTitle: 'focus-mascot',
+      windowTitle: 'meowmeow-assistant',
       idleSeconds: 0,
       available: true,
       timestamp

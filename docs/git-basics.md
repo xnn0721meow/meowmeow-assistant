@@ -27,7 +27,7 @@
 
 打开 <https://github.com/new>：
 
-- Repository name 填 `focus-mascot`（或你喜欢的名字）；
+- Repository name 填 `meowmeow-assistant`（或你喜欢的名字）；
 - 可见性选 Public 或 Private；
 - **不要勾** “Add a README file”“Add .gitignore”“Choose a license”，因为本地已经有了，勾了反而会在第一次 push 时冲突。
 
@@ -43,7 +43,7 @@ git init -b main
 git add .
 git commit -m "chore: initial project scaffold"
 
-git remote add origin https://github.com/你的用户名/focus-mascot.git
+git remote add origin https://github.com/你的用户名/meowmeow-assistant.git
 git push -u origin main
 ```
 
@@ -54,7 +54,7 @@ git push -u origin main
 ```powershell
 winget install --id GitHub.cli
 gh auth login
-gh repo create focus-mascot --public --source=. --remote=origin --push
+gh repo create meowmeow-assistant --public --source=. --remote=origin --push
 ```
 
 `gh auth login` 是交互式的，需要你本人完成浏览器授权。

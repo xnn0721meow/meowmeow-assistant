@@ -1,9 +1,12 @@
 {
-  "name": "focus-mascot",
+  "name": "meowmeow-assistant",
   "version": "0.1.0",
-  "description": "A desktop study companion with a transparent Live2D mascot and local focus detection.",
+  "description": "MeowMeow Assistant — a desktop study companion with a transparent Live2D mascot and local focus detection.",
   "main": "./out/main/index.js",
-  "author": "",
+  "author": {
+    "name": "xnn0721meow",
+    "email": "1246597997@qq.com"
+  },
   "license": "MIT",
   "private": true,
   "repository": {
@@ -44,8 +47,8 @@
     "vitest": "^3.2.0"
   },
   "build": {
-    "appId": "dev.focusmascot.app",
-    "productName": "Focus Mascot",
+    "appId": "dev.meowmeow.assistant",
+    "productName": "MeowMeow Assistant",
     "directories": {
       "output": "release"
     },

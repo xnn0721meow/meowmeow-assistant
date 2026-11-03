@@ -101,8 +101,8 @@ export function SettingsApp() {
     <main className="settings-page">
       <header className="settings-header">
         <div>
-          <h1>Focus Mascot</h1>
-          <p>本地优先的学习伴侣。摄像头画面只在内存里变成几个数字。</p>
+          <h1>喵喵助手</h1>
+          <p>MeowMeow Assistant · 本地优先的学习伴侣。摄像头画面只在内存里变成几个数字。</p>
         </div>
         <div className="header-status">
           <span className="status-dot" data-state={snapshot.state} />
