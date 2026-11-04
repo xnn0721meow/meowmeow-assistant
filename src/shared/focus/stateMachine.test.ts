@@ -6,7 +6,6 @@ const settings: AppSettings = {
   activityTrackingEnabled: true,
   reminderSensitivity: 'normal',
   maxRemindersPerHour: 3,
-  allowedApps: ['code', 'obsidian'],
   blockedApps: ['bilibili', 'steam'],
   live2dModelPath: null,
   avatarScale: 1,

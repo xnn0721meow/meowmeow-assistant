@@ -60,7 +60,6 @@ export interface AppSettings {
   activityTrackingEnabled: boolean
   reminderSensitivity: 'relaxed' | 'normal' | 'strict'
   maxRemindersPerHour: number
-  allowedApps: string[]
   blockedApps: string[]
   live2dModelPath: string | null
   avatarScale: number

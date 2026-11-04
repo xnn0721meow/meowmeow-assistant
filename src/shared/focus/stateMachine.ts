@@ -29,7 +29,6 @@ export class FocusStateMachine {
   private goodSince: number | null = null
 
   private thresholds: FocusThresholds
-  private allowedApps: string[]
   private blockedApps: string[]
   private activityEnabled: boolean
 
@@ -37,14 +36,12 @@ export class FocusStateMachine {
     this.sessionStartedAt = now
     this.lastUpdateAt = now
     this.thresholds = thresholdsFor(settings)
-    this.allowedApps = settings.allowedApps
     this.blockedApps = settings.blockedApps
     this.activityEnabled = settings.activityTrackingEnabled
   }
 
   applySettings(settings: AppSettings): void {
     this.thresholds = thresholdsFor(settings)
-    this.allowedApps = settings.allowedApps
     this.blockedApps = settings.blockedApps
     this.activityEnabled = settings.activityTrackingEnabled
   }
@@ -139,7 +136,6 @@ export class FocusStateMachine {
     const classification = classifyApp(
       activity.appName,
       activity.windowTitle,
-      this.allowedApps,
       this.blockedApps
     )
 

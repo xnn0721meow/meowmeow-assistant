@@ -7,24 +7,6 @@ const DEFAULTS: AppSettings = {
   activityTrackingEnabled: true,
   reminderSensitivity: 'normal',
   maxRemindersPerHour: 3,
-  allowedApps: [
-    'code',
-    'cursor',
-    'trae',
-    'pycharm',
-    'idea',
-    'webstorm',
-    'obsidian',
-    'notion',
-    'zotero',
-    'acrobat',
-    'sumatrapdf',
-    'typora',
-    'winword',
-    'excel',
-    'powerpnt',
-    'wps'
-  ],
   blockedApps: [
     'bilibili',
     '哔哩哔哩',
@@ -87,7 +69,6 @@ export function sanitizeSettings(input: Partial<AppSettings>): AppSettings {
     activityTrackingEnabled: Boolean(merged.activityTrackingEnabled),
     reminderSensitivity: sensitivity,
     maxRemindersPerHour: maxReminders,
-    allowedApps: cleanStringList(merged.allowedApps, DEFAULTS.allowedApps),
     blockedApps: cleanStringList(merged.blockedApps, DEFAULTS.blockedApps),
     live2dModelPath:
       typeof merged.live2dModelPath === 'string' && merged.live2dModelPath.trim()

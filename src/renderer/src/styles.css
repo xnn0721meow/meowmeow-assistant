@@ -681,6 +681,10 @@ input[type="checkbox"]:focus-visible {
   padding-top: 14px;
 }
 
+.textarea-grid.single {
+  grid-template-columns: 1fr;
+}
+
 .textarea-field,
 .text-field {
   display: flex;

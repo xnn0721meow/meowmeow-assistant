@@ -178,23 +178,13 @@ export function SettingsApp() {
 
       <section className="settings-card">
         <div className="card-heading">
-          <h2>应用规则</h2>
+          <h2>分心应用</h2>
           <span className="card-hint">匹配进程名或窗口标题</span>
         </div>
 
-        <div className="textarea-grid">
+        <div className="textarea-grid single">
           <label className="textarea-field">
-            <span>学习应用（每行一个关键词）</span>
-            <textarea
-              rows={6}
-              value={draft.allowedApps.join('\n')}
-              onChange={(event) =>
-                updateDraft({ allowedApps: event.target.value.split('\n') })
-              }
-            />
-          </label>
-          <label className="textarea-field">
-            <span>分心应用（每行一个关键词）</span>
+            <span>关键词（每行一个）</span>
             <textarea
               rows={6}
               value={draft.blockedApps.join('\n')}
@@ -205,7 +195,8 @@ export function SettingsApp() {
           </label>
         </div>
         <p className="field-hint">
-          例如在浏览器里打开 B 站，进程名是 chrome，但窗口标题会命中 blocked 里的 bilibili。
+          命中这些关键词时，连续停留达到阈值会提醒；其他应用默认算作学习。
+          例如在浏览器里打开 B 站，进程名是 chrome，但窗口标题会命中 bilibili。
         </p>
       </section>
 
