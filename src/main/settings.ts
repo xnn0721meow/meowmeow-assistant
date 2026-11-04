@@ -34,6 +34,10 @@ const DEFAULTS: AppSettings = {
     '腾讯视频',
     '优酷'
   ],
+  pomodoroFocusMinutes: 25,
+  pomodoroBreakMinutes: 5,
+  pomodoroLongBreakMinutes: 15,
+  pomodoroLongBreakEvery: 4,
   live2dModelPath: null,
   avatarScale: 1,
   avatarPosition: null
@@ -50,6 +54,11 @@ function cleanStringList(value: unknown, fallback: string[]): string[] {
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 100)
+}
+
+function cleanNumber(value: unknown, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, Math.round(value as number)))
 }
 
 export function sanitizeSettings(input: Partial<AppSettings>): AppSettings {
@@ -70,6 +79,30 @@ export function sanitizeSettings(input: Partial<AppSettings>): AppSettings {
     reminderSensitivity: sensitivity,
     maxRemindersPerHour: maxReminders,
     blockedApps: cleanStringList(merged.blockedApps, DEFAULTS.blockedApps),
+    pomodoroFocusMinutes: cleanNumber(
+      merged.pomodoroFocusMinutes,
+      1,
+      180,
+      DEFAULTS.pomodoroFocusMinutes
+    ),
+    pomodoroBreakMinutes: cleanNumber(
+      merged.pomodoroBreakMinutes,
+      1,
+      60,
+      DEFAULTS.pomodoroBreakMinutes
+    ),
+    pomodoroLongBreakMinutes: cleanNumber(
+      merged.pomodoroLongBreakMinutes,
+      1,
+      120,
+      DEFAULTS.pomodoroLongBreakMinutes
+    ),
+    pomodoroLongBreakEvery: cleanNumber(
+      merged.pomodoroLongBreakEvery,
+      1,
+      12,
+      DEFAULTS.pomodoroLongBreakEvery
+    ),
     live2dModelPath:
       typeof merged.live2dModelPath === 'string' && merged.live2dModelPath.trim()
         ? merged.live2dModelPath.trim()

@@ -7,6 +7,10 @@ const settings: AppSettings = {
   reminderSensitivity: 'normal',
   maxRemindersPerHour: 3,
   blockedApps: ['bilibili', 'steam'],
+  pomodoroFocusMinutes: 25,
+  pomodoroBreakMinutes: 5,
+  pomodoroLongBreakMinutes: 15,
+  pomodoroLongBreakEvery: 4,
   live2dModelPath: null,
   avatarScale: 1,
   avatarPosition: null

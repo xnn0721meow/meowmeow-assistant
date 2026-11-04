@@ -32,6 +32,7 @@ export class FocusEngine extends EventEmitter {
 
   private lastReminderAt: number | null = null
   private snoozedUntil: number | null = null
+  private suppressReminders = false
 
   constructor(settings: AppSettings) {
     super()
@@ -80,6 +81,10 @@ export class FocusEngine extends EventEmitter {
     this.budget.setMaxPerHour(settings.maxRemindersPerHour)
     this.activity.available = this.activityProbeAvailable && settings.activityTrackingEnabled
     this.emitSnapshot()
+  }
+
+  setSuppressReminders(suppress: boolean): void {
+    this.suppressReminders = suppress
   }
 
   setPaused(paused: boolean): void {
@@ -158,7 +163,7 @@ export class FocusEngine extends EventEmitter {
         event.previousState === 'focused'
       ) {
         const snoozed = this.snoozedUntil !== null && this.snoozedUntil > now
-        if (!snoozed && this.budget.consume(now)) {
+        if (!this.suppressReminders && !snoozed && this.budget.consume(now)) {
           this.lastReminderAt = now
           const reminder = buildReminder(
             event.reason ?? 'unknown',

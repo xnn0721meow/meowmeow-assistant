@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { AppSettings, FocusSnapshot } from '@shared/focus/types'
+import type { PomodoroSnapshot } from '@shared/pomodoro/types'
+import {
+  EMPTY_POMODORO_SNAPSHOT,
+  formatPomodoroClock,
+  pomodoroPhaseLabel
+} from '@shared/pomodoro/display'
 import { formatDuration, stateLabel } from '@shared/focus/messages'
 
 const EMPTY_SNAPSHOT: FocusSnapshot = {
@@ -26,28 +32,36 @@ function formatClock(timestamp: number): string {
 export function SettingsApp() {
   const [draft, setDraft] = useState<AppSettings | null>(null)
   const [snapshot, setSnapshot] = useState<FocusSnapshot>(EMPTY_SNAPSHOT)
+  const [pomodoro, setPomodoro] = useState<PomodoroSnapshot>(EMPTY_POMODORO_SNAPSHOT)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([window.focusMascot.getSettings(), window.focusMascot.getSnapshot()])
-      .then(([initialSettings, initialSnapshot]) => {
+    Promise.all([
+      window.focusMascot.getSettings(),
+      window.focusMascot.getSnapshot(),
+      window.focusMascot.getPomodoroSnapshot()
+    ])
+      .then(([initialSettings, initialSnapshot, initialPomodoro]) => {
         if (cancelled) return
         setDraft(initialSettings)
         setSnapshot(initialSnapshot)
+        setPomodoro(initialPomodoro)
       })
       .catch((error) => {
         if (!cancelled) setSaveError(error instanceof Error ? error.message : '读取设置失败')
       })
 
     const offSnapshot = window.focusMascot.onSnapshot((next) => setSnapshot(next))
+    const offPomodoro = window.focusMascot.onPomodoroSnapshot((next) => setPomodoro(next))
     const offSettings = window.focusMascot.onSettingsChanged((next) => setDraft(next))
 
     return () => {
       cancelled = true
       offSnapshot()
+      offPomodoro()
       offSettings()
     }
   }, [])
@@ -122,6 +136,170 @@ export function SettingsApp() {
         <p className="field-hint">
           只读取进程名、窗口标题和键鼠空闲秒数。不截图、不读取画面、不上传。
           分心应用连续停留达到阈值会提醒；空闲超过一段时间会暂停计时。
+        </p>
+      </section>
+
+      <section className="settings-card">
+        <div className="card-heading">
+          <h2>番茄钟与故事</h2>
+          <span className="card-hint">每完成一轮 +10 关系值</span>
+        </div>
+
+        <div className="field-row">
+          <span className="field-label">专注时长（分钟）</span>
+          <input
+            className="number-input"
+            type="number"
+            min={1}
+            max={180}
+            value={draft.pomodoroFocusMinutes}
+            onChange={(event) =>
+              updateDraft({ pomodoroFocusMinutes: Number(event.target.value) })
+            }
+          />
+        </div>
+
+        <div className="field-row">
+          <span className="field-label">短休息（分钟）</span>
+          <input
+            className="number-input"
+            type="number"
+            min={1}
+            max={60}
+            value={draft.pomodoroBreakMinutes}
+            onChange={(event) =>
+              updateDraft({ pomodoroBreakMinutes: Number(event.target.value) })
+            }
+          />
+        </div>
+
+        <div className="field-row">
+          <span className="field-label">长休息（分钟）</span>
+          <input
+            className="number-input"
+            type="number"
+            min={1}
+            max={120}
+            value={draft.pomodoroLongBreakMinutes}
+            onChange={(event) =>
+              updateDraft({ pomodoroLongBreakMinutes: Number(event.target.value) })
+            }
+          />
+        </div>
+
+        <div className="field-row">
+          <span className="field-label">每几轮长休息</span>
+          <input
+            className="number-input"
+            type="number"
+            min={1}
+            max={12}
+            value={draft.pomodoroLongBreakEvery}
+            onChange={(event) =>
+              updateDraft({ pomodoroLongBreakEvery: Number(event.target.value) })
+            }
+          />
+        </div>
+
+        <div className="session-grid story-grid">
+          <div>
+            <span className="muted">角色</span>
+            <strong>{pomodoro.characterName}</strong>
+          </div>
+          <div>
+            <span className="muted">关系值</span>
+            <strong>{pomodoro.bond}</strong>
+          </div>
+          <div>
+            <span className="muted">已完成</span>
+            <strong>{pomodoro.completedPomodoros} 轮</strong>
+          </div>
+          <div>
+            <span className="muted">故事</span>
+            <strong>
+              {pomodoro.storyIndex}/{pomodoro.chapterCount}
+            </strong>
+          </div>
+        </div>
+
+        <div className="status-line">
+          <span className="status-dot" data-state={pomodoro.phase === 'idle' ? 'unknown' : 'focused'} />
+          <span>
+            {pomodoroPhaseLabel(pomodoro.phase)}
+            {pomodoro.phase !== 'idle' ? ` · ${formatPomodoroClock(pomodoro.remainingMs)}` : ''}
+          </span>
+          <span className="muted">
+            {pomodoro.currentChapter
+              ? `最近解锁：${pomodoro.currentChapter.title}`
+              : '还没有解锁故事'}
+            {pomodoro.nextChapter
+              ? ` · 下一段需要 ${pomodoro.nextBondRequired} 关系值`
+              : ' · 全部故事已解锁'}
+          </span>
+        </div>
+
+        <div className="button-row">
+          {pomodoro.phase === 'idle' && (
+            <button
+              className="settings-button primary"
+              onClick={() => window.focusMascot.startPomodoro()}
+            >
+              开始专注
+            </button>
+          )}
+          {(pomodoro.phase === 'focus' ||
+            pomodoro.phase === 'break' ||
+            pomodoro.phase === 'long-break') && (
+            <button
+              className="settings-button"
+              onClick={() => window.focusMascot.pausePomodoro()}
+            >
+              暂停计时
+            </button>
+          )}
+          {pomodoro.phase === 'paused' && (
+            <button
+              className="settings-button primary"
+              onClick={() => window.focusMascot.resumePomodoro()}
+            >
+              继续计时
+            </button>
+          )}
+          {pomodoro.phase !== 'idle' && (
+            <button
+              className="settings-button"
+              onClick={() => window.focusMascot.stopPomodoro()}
+            >
+              结束这一轮
+            </button>
+          )}
+          {(pomodoro.phase === 'break' || pomodoro.phase === 'long-break') && (
+            <button className="settings-button" onClick={() => window.focusMascot.skipBreak()}>
+              跳过休息
+            </button>
+          )}
+          <button
+            className="settings-button ghost"
+            onClick={() => window.focusMascot.openStoryFile()}
+          >
+            打开 story.json
+          </button>
+          <button
+            className="settings-button ghost"
+            onClick={() => {
+              if (!window.confirm('确定重置关系值和故事进度吗？已完成轮数也会归零。')) return
+              window.focusMascot.resetStoryProgress()
+            }}
+          >
+            重置剧情进度
+          </button>
+        </div>
+
+        <p className="field-hint">
+          剧情与关系值保存在应用数据目录的 <code>story.json</code> 和{' '}
+          <code>progress.json</code>。可以直接编辑 <code>story.json</code> 的{' '}
+          <code>character</code>、<code>breakLines</code> 和 <code>chapters</code>，保存后重启应用生效。
+          默认角色「小喵」是内置原创示例，不含游戏原文。
         </p>
       </section>
 
@@ -266,7 +444,7 @@ export function SettingsApp() {
             {snapshot.paused ? '继续检测' : '暂停检测'}
           </button>
           <button className="settings-button" onClick={() => window.focusMascot.resetSession()}>
-            开始新的学习
+            开始新的专注
           </button>
           <button className="settings-button ghost" onClick={() => window.focusMascot.openDataFolder()}>
             打开数据目录

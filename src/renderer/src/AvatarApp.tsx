@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AppSettings, FocusEvent, FocusSnapshot, Reminder, ReminderAction } from '@shared/focus/types'
+import type { PomodoroEvent, PomodoroSnapshot } from '@shared/pomodoro/types'
+import { EMPTY_POMODORO_SNAPSHOT, formatPomodoroClock, pomodoroPhaseLabel } from '@shared/pomodoro/display'
 import { formatDuration, stateLabel, buildStartMessage } from '@shared/focus/messages'
 import { Mascot } from './components/Mascot'
-import { SpeechBubble } from './components/SpeechBubble'
+import { SpeechBubble, type StoryMoment } from './components/SpeechBubble'
 import { mountLive2D } from './live2d/live2dStage'
 
 const EMPTY_SNAPSHOT: FocusSnapshot = {
@@ -21,8 +23,10 @@ const EMPTY_SNAPSHOT: FocusSnapshot = {
 
 export function AvatarApp() {
   const [snapshot, setSnapshot] = useState<FocusSnapshot>(EMPTY_SNAPSHOT)
+  const [pomodoro, setPomodoro] = useState<PomodoroSnapshot>(EMPTY_POMODORO_SNAPSHOT)
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [reminder, setReminder] = useState<Reminder | null>(null)
+  const [story, setStory] = useState<StoryMoment | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [live2dError, setLive2dError] = useState<string | null>(null)
   const [live2dActive, setLive2dActive] = useState(false)
@@ -33,11 +37,16 @@ export function AvatarApp() {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([window.focusMascot.getSnapshot(), window.focusMascot.getSettings()])
-      .then(([initialSnapshot, initialSettings]) => {
+    Promise.all([
+      window.focusMascot.getSnapshot(),
+      window.focusMascot.getSettings(),
+      window.focusMascot.getPomodoroSnapshot()
+    ])
+      .then(([initialSnapshot, initialSettings, initialPomodoro]) => {
         if (cancelled) return
         setSnapshot(initialSnapshot)
         setSettings(initialSettings)
+        setPomodoro(initialPomodoro)
         setMessage(buildStartMessage())
       })
       .catch((error) => {
@@ -45,6 +54,43 @@ export function AvatarApp() {
       })
 
     const offSnapshot = window.focusMascot.onSnapshot((next) => setSnapshot(next))
+    const offPomodoroSnapshot = window.focusMascot.onPomodoroSnapshot((next) =>
+      setPomodoro(next)
+    )
+
+    const offPomodoroEvent = window.focusMascot.onPomodoroEvent((event: PomodoroEvent) => {
+      setPomodoro(event.snapshot)
+
+      if (event.type === 'focus-completed') {
+        setReminder(null)
+        if (event.chapter) {
+          setStory({
+            chapter: event.chapter,
+            index: event.chapterIndex ?? event.snapshot.storyIndex
+          })
+          setMessage(event.message ?? null)
+        } else {
+          setStory(null)
+          setMessage(event.breakLine ?? event.message ?? null)
+        }
+        return
+      }
+
+      if (
+        event.type === 'started' ||
+        event.type === 'break-ended' ||
+        event.type === 'stopped' ||
+        event.type === 'progress-reset'
+      ) {
+        setStory(null)
+        setMessage(event.message ?? null)
+        return
+      }
+
+      if (event.type === 'paused' || event.type === 'resumed') {
+        setMessage(event.message ?? null)
+      }
+    })
 
     const offEvent = window.focusMascot.onEvent((event: FocusEvent) => {
       if (event.type === 'reminder' && event.reminder) {
@@ -85,6 +131,8 @@ export function AvatarApp() {
     return () => {
       cancelled = true
       offSnapshot()
+      offPomodoroSnapshot()
+      offPomodoroEvent()
       offEvent()
       offSettings()
     }
@@ -202,18 +250,36 @@ export function AvatarApp() {
   }, [snapshot.paused, snapshot.state])
 
   const scale = settings?.avatarScale ?? 1
-  const bubbleVisible = Boolean(reminder || message)
+  const bubbleVisible = Boolean(reminder || story || message)
+  const phaseLabel = pomodoroPhaseLabel(pomodoro.phase)
+  const clockText = formatPomodoroClock(pomodoro.remainingMs)
+  const progressPercent =
+    pomodoro.totalMs > 0
+      ? Math.min(
+          100,
+          Math.max(0, ((pomodoro.totalMs - pomodoro.remainingMs) / pomodoro.totalMs) * 100)
+        )
+      : 0
+  const waitingForFocus =
+    pomodoro.phase === 'focus' && (snapshot.paused || snapshot.state !== 'focused')
 
   return (
-    <div className="avatar-root" data-state={snapshot.state} data-bubble={bubbleVisible}>
+    <div
+      className="avatar-root"
+      data-state={snapshot.state}
+      data-phase={pomodoro.phase}
+      data-bubble={bubbleVisible}
+    >
       <div className="bubble-slot">
         <SpeechBubble
           reminder={reminder}
+          story={story}
           message={message}
           onAction={handleReminderAction}
           onDismiss={() => {
             window.focusMascot.reminderAction('dismiss')
             setReminder(null)
+            setStory(null)
             setMessage(null)
           }}
         />
@@ -237,6 +303,79 @@ export function AvatarApp() {
           <span className="drag-dot" />
         </div>
 
+        <div className="pomodoro-panel interactive">
+          <div className="pomodoro-row">
+            <div className="pomodoro-time">
+              <span className="pomodoro-phase" data-phase={pomodoro.phase}>
+                {phaseLabel}
+              </span>
+              <span className="pomodoro-clock">{clockText}</span>
+            </div>
+
+            <div className="pomodoro-meta">
+              <span>关系 {pomodoro.bond}</span>
+              <span>
+                故事 {pomodoro.storyIndex}/{pomodoro.chapterCount}
+              </span>
+            </div>
+
+            <div className="pomodoro-actions">
+              {pomodoro.phase === 'idle' && (
+                <button
+                  className="pomo-button primary"
+                  onClick={() => window.focusMascot.startPomodoro()}
+                >
+                  开始
+                </button>
+              )}
+
+              {(pomodoro.phase === 'focus' ||
+                pomodoro.phase === 'break' ||
+                pomodoro.phase === 'long-break') && (
+                <>
+                  <button className="pomo-button" onClick={() => window.focusMascot.pausePomodoro()}>
+                    暂停
+                  </button>
+                  {pomodoro.phase === 'focus' ? (
+                    <button className="pomo-button ghost" onClick={() => window.focusMascot.stopPomodoro()}>
+                      结束
+                    </button>
+                  ) : (
+                    <button className="pomo-button ghost" onClick={() => window.focusMascot.skipBreak()}>
+                      跳过
+                    </button>
+                  )}
+                </>
+              )}
+
+              {pomodoro.phase === 'paused' && (
+                <>
+                  <button className="pomo-button primary" onClick={() => window.focusMascot.resumePomodoro()}>
+                    继续
+                  </button>
+                  <button className="pomo-button ghost" onClick={() => window.focusMascot.stopPomodoro()}>
+                    结束
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="pomodoro-track">
+            <div
+              className="pomodoro-fill"
+              data-phase={pomodoro.phase}
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {waitingForFocus && (
+            <div className="pomodoro-hint">
+              {snapshot.paused ? '检测已暂停，计时先冻结。' : '回到学习窗口后，计时才会继续。'}
+            </div>
+          )}
+        </div>
+
         <div className="status-row">
           <span className="status-dot" data-state={snapshot.state} />
           <span className="status-label">{statusText}</span>
@@ -251,13 +390,13 @@ export function AvatarApp() {
 
         <div className="quick-actions interactive">
           <button className="quick-button" onClick={togglePause}>
-            {snapshot.paused ? '继续' : '暂停'}
+            {snapshot.paused ? '继续检测' : '暂停检测'}
           </button>
           <button className="quick-button" onClick={() => window.focusMascot.openSettings()}>
             设置
           </button>
           <button className="quick-button ghost" onClick={() => window.focusMascot.resetSession()}>
-            新会话
+            新专注
           </button>
         </div>
       </div>

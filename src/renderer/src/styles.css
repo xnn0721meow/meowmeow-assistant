@@ -351,6 +351,137 @@ button {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Pomodoro                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.pomodoro-panel {
+  width: 100%;
+  max-width: 322px;
+  margin-top: 2px;
+  padding: 6px 10px 7px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 17, 21, 0.62);
+  color: #ecf7f1;
+  backdrop-filter: blur(8px);
+  pointer-events: auto;
+}
+
+.pomodoro-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pomodoro-time {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.pomodoro-phase {
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: #9aa6b6;
+}
+
+.pomodoro-phase[data-phase="break"],
+.pomodoro-phase[data-phase="long-break"] {
+  color: #7fd7ff;
+}
+
+.pomodoro-clock {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #f1fff8;
+}
+
+.pomodoro-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 9px;
+  line-height: 1.2;
+  color: #8e9aab;
+}
+
+.pomodoro-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.pomo-button {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 20, 25, 0.58);
+  color: #e8f3ed;
+  font-size: 10px;
+  line-height: 1.3;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.pomo-button:hover {
+  background: rgba(47, 229, 154, 0.18);
+  border-color: rgba(47, 229, 154, 0.45);
+}
+
+.pomo-button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #062d1c;
+  font-weight: 600;
+}
+
+.pomo-button.primary:hover {
+  background: #54f2b1;
+}
+
+.pomo-button.ghost {
+  color: #b7c2d0;
+}
+
+.pomodoro-track {
+  height: 3px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pomodoro-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 1s linear;
+}
+
+.pomodoro-fill[data-phase="break"],
+.pomodoro-fill[data-phase="long-break"] {
+  background: #7fd7ff;
+}
+
+.pomodoro-fill[data-phase="paused"] {
+  background: #9b8cff;
+}
+
+.pomodoro-hint {
+  margin-top: 4px;
+  font-size: 9px;
+  line-height: 1.3;
+  color: #8e9aab;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Speech bubble                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -394,11 +525,30 @@ button {
   letter-spacing: 0.01em;
 }
 
+.bubble-tag {
+  padding-right: 24px;
+  margin-bottom: 3px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: #6ff4bd;
+}
+
+.bubble-note {
+  margin-top: 7px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #8e9aab;
+}
+
 .bubble-body {
   margin-top: 3px;
   color: #cbd4e1;
   font-size: 13px;
   line-height: 1.55;
+}
+
+.bubble-body.story-text {
+  line-height: 1.65;
 }
 
 .bubble-actions {
@@ -758,6 +908,11 @@ input[type="checkbox"]:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.story-grid {
+  grid-template-columns: repeat(4, 1fr);
+  padding-bottom: 2px;
 }
 
 .session-grid span {

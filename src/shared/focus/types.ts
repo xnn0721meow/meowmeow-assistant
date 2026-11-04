@@ -61,6 +61,10 @@ export interface AppSettings {
   reminderSensitivity: 'relaxed' | 'normal' | 'strict'
   maxRemindersPerHour: number
   blockedApps: string[]
+  pomodoroFocusMinutes: number
+  pomodoroBreakMinutes: number
+  pomodoroLongBreakMinutes: number
+  pomodoroLongBreakEvery: number
   live2dModelPath: string | null
   avatarScale: number
   avatarPosition: { x: number; y: number } | null

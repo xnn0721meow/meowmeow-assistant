@@ -2,10 +2,13 @@ import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } f
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AppSettings, FocusEvent, FocusSnapshot, ReminderAction } from '@shared/focus/types'
+import type { PomodoroEvent, PomodoroSnapshot } from '@shared/pomodoro/types'
 import { IPC } from '@shared/ipc'
 import { FocusEngine } from './focusEngine'
 import { ActivityProbe } from './activityProbe'
+import { PomodoroEngine } from './pomodoroEngine'
 import { loadSettings, saveSettings, sanitizeSettings } from './settings'
+import { StoryService } from './story'
 
 // Development-only escape hatch for sandboxed environments where the default
 // AppData directory is not writable. Production uses Electron's default path.
@@ -16,12 +19,14 @@ if (customUserData) {
 }
 
 const AVATAR_WIDTH = 360
-const AVATAR_HEIGHT = 520
+const AVATAR_HEIGHT = 600
 
 let avatarWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let engine: FocusEngine | null = null
+let pomodoro: PomodoroEngine | null = null
+let storyService: StoryService | null = null
 let activityProbe: ActivityProbe | null = null
 let settings: AppSettings
 let isQuitting = false
@@ -200,6 +205,14 @@ function toggleAvatarWindow(): void {
   rebuildTrayMenu()
 }
 
+function startNewSession(): void {
+  engine?.resetSession()
+  const phase = pomodoro?.getSnapshot().phase
+  if (phase && phase !== 'idle') pomodoro?.stop(Date.now())
+  pomodoro?.start(Date.now())
+  rebuildTrayMenu()
+}
+
 function rebuildTrayMenu(): void {
   if (!tray) return
   const snapshot = engine?.getSnapshot()
@@ -216,8 +229,8 @@ function rebuildTrayMenu(): void {
     },
     { type: 'separator' },
     {
-      label: '开始新的学习',
-      click: () => engine?.resetSession()
+      label: '开始新的专注',
+      click: startNewSession
     },
     {
       label: '设置',
@@ -265,6 +278,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.settingsUpdate, (_event, patch: Partial<AppSettings>) => {
     settings = sanitizeSettings({ ...settings, ...patch })
     saveSettings(settings)
+    pomodoro?.updateSettings(settings)
     engine?.updateSettings(settings)
     broadcast(IPC.settingsChanged, settings)
     rebuildTrayMenu()
@@ -272,9 +286,23 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.focusGetSnapshot, () => engine?.getSnapshot())
+  ipcMain.handle(IPC.pomodoroGetSnapshot, () => pomodoro?.getSnapshot())
 
-  ipcMain.on(IPC.focusReset, () => engine?.resetSession())
+  ipcMain.on(IPC.focusReset, startNewSession)
   ipcMain.on(IPC.focusSetPaused, (_event, paused: boolean) => engine?.setPaused(Boolean(paused)))
+
+  ipcMain.on(IPC.pomodoroStart, () => pomodoro?.start())
+  ipcMain.on(IPC.pomodoroPause, () => pomodoro?.pause())
+  ipcMain.on(IPC.pomodoroResume, () => pomodoro?.resume())
+  ipcMain.on(IPC.pomodoroStop, () => pomodoro?.stop())
+  ipcMain.on(IPC.pomodoroSkipBreak, () => pomodoro?.skipBreak())
+  ipcMain.on(IPC.pomodoroResetProgress, () => pomodoro?.resetProgress())
+
+  ipcMain.on(IPC.storyOpenFile, () => {
+    if (!storyService) return
+    storyService.ensureStoryFile()
+    void shell.openPath(storyService.storyPath)
+  })
 
   ipcMain.on(IPC.windowSetInteractive, (_event, interactive: boolean) => {
     if (!avatarWindow || avatarWindow.isDestroyed()) return
@@ -290,6 +318,7 @@ function registerIpc(): void {
 
   ipcMain.on(IPC.reminderAction, (_event, action: ReminderAction) => {
     engine?.acknowledgeReminder(action)
+    if (action === 'end-session') pomodoro?.stop()
   })
 }
 
@@ -298,12 +327,25 @@ async function bootstrap(): Promise<void> {
 
   app.setAppUserModelId('dev.meowmeow.assistant')
 
+  storyService = new StoryService(app.getPath('userData'))
+  pomodoro = new PomodoroEngine(settings, storyService)
+
   engine = new FocusEngine(settings)
   engine.on('event', (event: FocusEvent) => {
     broadcast(IPC.focusEvent, event)
   })
   engine.on('snapshot', (snapshot: FocusSnapshot) => {
     broadcast(IPC.focusSnapshotChanged, snapshot)
+    pomodoro?.setFocusState(snapshot.state, snapshot.paused)
+    pomodoro?.tick(Date.now())
+  })
+
+  pomodoro.on('event', (event: PomodoroEvent) => {
+    broadcast(IPC.pomodoroEvent, event)
+  })
+  pomodoro.on('snapshot', (snapshot: PomodoroSnapshot) => {
+    engine?.setSuppressReminders(snapshot.suppressReminders)
+    broadcast(IPC.pomodoroSnapshotChanged, snapshot)
   })
 
   registerIpc()
