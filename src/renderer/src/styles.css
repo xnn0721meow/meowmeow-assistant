@@ -184,18 +184,6 @@ button {
   stroke-width: 1.5;
 }
 
-.mascot-camera-badge circle {
-  fill: #ff6b6b;
-  stroke: #ffffff;
-  stroke-width: 1.5;
-}
-
-.mascot-camera-badge path {
-  stroke: #ffffff;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-}
-
 .mascot-zzz text {
   fill: #eafff5;
   font: 700 16px var(--font-sans);

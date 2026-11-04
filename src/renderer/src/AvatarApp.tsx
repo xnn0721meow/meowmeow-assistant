@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AppSettings, FocusEvent, FocusSnapshot, Reminder, ReminderAction } from '@shared/focus/types'
 import { formatDuration, stateLabel, buildStartMessage } from '@shared/focus/messages'
-import { FaceTracker } from './vision/faceTracker'
 import { Mascot } from './components/Mascot'
 import { SpeechBubble } from './components/SpeechBubble'
 import { mountLive2D } from './live2d/live2dStage'
@@ -15,8 +14,6 @@ const EMPTY_SNAPSHOT: FocusSnapshot = {
   lastReminderAt: null,
   remindersThisHour: 0,
   snoozedUntil: null,
-  visionAvailable: false,
-  visionStatus: 'idle',
   activityAvailable: false,
   currentApp: null,
   currentTitle: null
@@ -27,45 +24,11 @@ export function AvatarApp() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [reminder, setReminder] = useState<Reminder | null>(null)
   const [message, setMessage] = useState<string | null>(null)
-  const [cameraError, setCameraError] = useState<string | null>(null)
   const [live2dError, setLive2dError] = useState<string | null>(null)
   const [live2dActive, setLive2dActive] = useState(false)
 
-  const trackerRef = useRef<FaceTracker | null>(null)
   const live2dHostRef = useRef<HTMLDivElement | null>(null)
   const live2dCleanupRef = useRef<(() => void) | null>(null)
-
-  const ensureTracker = useCallback((): FaceTracker => {
-    if (!trackerRef.current) {
-      trackerRef.current = new FaceTracker({
-        onSignal: (signal) => window.focusMascot.sendVision(signal),
-        onStatus: (status, statusMessage) => {
-          window.focusMascot.reportVisionStatus(status, statusMessage)
-          if (status === 'error' || status === 'unavailable') {
-            setCameraError(statusMessage ?? '摄像头不可用')
-          } else if (status === 'active') {
-            setCameraError(null)
-          }
-        }
-      })
-    }
-    return trackerRef.current
-  }, [])
-
-  const startCamera = useCallback(
-    (nextSettings: AppSettings) => {
-      const tracker = ensureTracker()
-      if (!nextSettings.cameraEnabled) {
-        tracker.stop()
-        setCameraError(null)
-        return
-      }
-      tracker.start().catch((error: unknown) => {
-        setCameraError(error instanceof Error ? error.message : '摄像头启动失败')
-      })
-    },
-    [ensureTracker]
-  )
 
   useEffect(() => {
     let cancelled = false
@@ -76,7 +39,6 @@ export function AvatarApp() {
         setSnapshot(initialSnapshot)
         setSettings(initialSettings)
         setMessage(buildStartMessage())
-        startCamera(initialSettings)
       })
       .catch((error) => {
         console.warn('Could not load initial state:', error)
@@ -118,15 +80,6 @@ export function AvatarApp() {
 
     const offSettings = window.focusMascot.onSettingsChanged((next) => {
       setSettings(next)
-      startCamera(next)
-    })
-
-    const offVision = window.focusMascot.onVisionStatus(({ status, message: statusMessage }) => {
-      if (status === 'error' || status === 'unavailable') {
-        setCameraError(statusMessage ?? '摄像头不可用')
-      } else if (status === 'active') {
-        setCameraError(null)
-      }
     })
 
     return () => {
@@ -134,10 +87,8 @@ export function AvatarApp() {
       offSnapshot()
       offEvent()
       offSettings()
-      offVision()
-      trackerRef.current?.stop()
     }
-  }, [startCamera])
+  }, [])
 
   useEffect(() => {
     if (!message || reminder) return
@@ -245,10 +196,6 @@ export function AvatarApp() {
     window.focusMascot.setPaused(!snapshot.paused)
   }
 
-  const cameraUnavailable =
-    Boolean(settings?.cameraEnabled) &&
-    (snapshot.visionStatus === 'error' || snapshot.visionStatus === 'unavailable')
-
   const statusText = useMemo(() => {
     if (snapshot.paused) return '已暂停'
     return stateLabel(snapshot.state)
@@ -279,7 +226,7 @@ export function AvatarApp() {
           onDoubleClick={() => window.focusMascot.openSettings()}
           title="双击打开设置"
         >
-          <Mascot state={snapshot.state} cameraUnavailable={cameraUnavailable} />
+          <Mascot state={snapshot.state} />
           <div ref={live2dHostRef} className="live2d-host" aria-hidden="true" />
         </div>
 
@@ -296,9 +243,9 @@ export function AvatarApp() {
           <span className="status-time">{formatDuration(snapshot.focusedMs)}</span>
         </div>
 
-        {(cameraError || live2dError) && (
-          <div className="error-hint" title={cameraError ?? live2dError ?? undefined}>
-            {cameraError ? '摄像头不可用，正在使用窗口信号' : 'Live2D 加载失败，使用内置形象'}
+        {live2dError && (
+          <div className="error-hint" title={live2dError}>
+            Live2D 加载失败，使用内置形象
           </div>
         )}
 

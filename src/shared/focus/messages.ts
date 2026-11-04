@@ -1,4 +1,4 @@
-import type { ActivitySignal, FocusEvidence, FocusState, Reminder, ReminderAction } from './types'
+import type { ActivitySignal, FocusEvidence, FocusState, Reminder } from './types'
 
 export function formatDuration(ms: number): string {
   const totalMinutes = Math.floor(ms / 60_000)
@@ -16,7 +16,6 @@ export function buildReminder(
   windowTitle: string | null
 ): Reminder {
   const appLabel = appName?.replace(/\.exe$/i, '') ?? windowTitle?.slice(0, 32) ?? '这个窗口'
-  const minutes = evidence.gazeAwayMs ? Math.max(1, Math.round(evidence.gazeAwayMs / 60_000)) : 0
 
   switch (reason) {
     case 'blocked-app':
@@ -26,25 +25,11 @@ export function buildReminder(
         body: `你在「${appLabel}」已经停留了一会儿。要回来继续吗？`,
         evidence
       }
-    case 'gaze-away':
-      return {
-        reason,
-        title: '视线离开屏幕',
-        body: minutes > 0 ? `目光离开屏幕约 ${minutes} 分钟了，还在学吗？` : '目光离开屏幕了，还在学吗？',
-        evidence
-      }
     case 'idle':
       return {
         reason,
         title: '好像停下来了',
-        body: '键盘和鼠标都安静了一会儿。是在看书，还是卡住了？',
-        evidence
-      }
-    case 'no-face':
-      return {
-        reason,
-        title: '你离开了',
-        body: '计时先暂停，回来我们再继续。',
+        body: '键盘和鼠标都安静了一会儿。是在看书，还是已经离开了？',
         evidence
       }
     default:
@@ -63,15 +48,11 @@ export function buildReturnedMessage(focusedMs: number): string {
 }
 
 export function buildAwayMessage(): string {
-  return '你离开了，计时先暂停。回来我会继续陪你。'
+  return '你离开了一会儿，计时先暂停。回来我们继续。'
 }
 
 export function buildStartMessage(): string {
   return '学习模式已开始。先定一个小目标，我会安静陪着你。'
-}
-
-export function reminderActionsFor(action: ReminderAction): ReminderAction {
-  return action
 }
 
 export function activityEvidence(activity: ActivitySignal): FocusEvidence {

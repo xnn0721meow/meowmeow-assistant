@@ -26,7 +26,6 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^1.2.0",
     "@pixi/sound": "^6.0.1",
     "pixi.js": "^8.13.1",
     "react": "^19.2.0",

@@ -8,14 +8,13 @@ import type {
 } from './types'
 import { classifyApp } from './classify'
 import { buildAwayMessage, buildReturnedMessage, buildStartMessage } from './messages'
-import { thresholdFor, thresholdsFor, type FocusThresholds } from './thresholds'
+import { thresholdsFor, type FocusThresholds } from './thresholds'
 
 /**
  * Pure, timestamp-driven focus state machine.
  *
- * It deliberately has no DOM, no Electron and no timers. Callers feed it
- * snapshots; it returns events. That makes the "did I get distracted?" logic
- * testable with synthetic sequences instead of a real camera.
+ * Inputs are intentionally cheap and local: the foreground app/title plus the
+ * system idle time. No camera, no screenshots, no vision model.
  */
 export class FocusStateMachine {
   private state: FocusState = 'unknown'
@@ -28,7 +27,6 @@ export class FocusStateMachine {
   private badSince: number | null = null
   private badReason: DistractionReason | null = null
   private goodSince: number | null = null
-  private noFaceSince: number | null = null
 
   private thresholds: FocusThresholds
   private allowedApps: string[]
@@ -120,159 +118,111 @@ export class FocusStateMachine {
     if (this.paused) return []
 
     const events: FocusEvent[] = []
-    const vision = snapshot.vision
     const activity = snapshot.activity
-    const facePresent = vision ? vision.facePresent : null
-    const lookingAtScreen = vision ? vision.lookingAtScreen : null
+    const activityUsable = this.activityEnabled && activity.available
+    const evidence: FocusEvidence = {
+      appName: activity.appName,
+      windowTitle: activity.windowTitle,
+      idleSeconds: activity.idleSeconds
+    }
+
+    if (!activityUsable) {
+      this.clearCandidates()
+      if (this.state === 'focused' || this.state === 'distracted') {
+        this.previousState = this.state
+        this.state = 'unknown'
+        events.push(this.event('state-changed', now, 'unknown', { evidence }))
+      }
+      return events
+    }
+
     const classification = classifyApp(
       activity.appName,
       activity.windowTitle,
       this.allowedApps,
       this.blockedApps
     )
-    const activityUsable = this.activityEnabled && activity.available
 
-    if (facePresent === false) {
-      this.noFaceSince ??= now
-    } else {
-      this.noFaceSince = null
+    // A long period without keyboard/mouse input pauses the session. The user
+    // may simply be reading, so we do not nag; we just stop counting.
+    if (activity.idleSeconds >= this.thresholds.awayAfterSeconds) {
+      this.clearCandidates()
+      if (this.state !== 'away') {
+        this.previousState = this.state
+        this.state = 'away'
+        events.push(
+          this.event('state-changed', now, 'away', {
+            reason: 'idle',
+            evidence,
+            message: buildAwayMessage()
+          })
+        )
+      }
+      return events
     }
 
-    // Returning after an absence is acknowledged immediately; the mascot
-    // should look happy before it starts judging anything again.
-    if (this.state === 'away' && facePresent === true) {
+    if (this.state === 'away') {
       this.previousState = 'away'
       this.state = 'unknown'
       this.clearCandidates()
       events.push(
         this.event('returned', now, 'unknown', {
+          evidence,
           message: buildReturnedMessage(this.focusedMs)
         })
       )
     }
 
-    let candidate: DistractionReason | null = null
-
-    if (facePresent === true) {
-      if (classification === 'blocked') {
-        candidate = 'blocked-app'
-      } else if (lookingAtScreen === false) {
-        candidate = 'gaze-away'
-      } else if (!vision!.eyesOpen && activity.idleSeconds >= this.thresholds.idleAwaySeconds) {
-        candidate = 'idle'
-      }
-    } else if (facePresent === false) {
-      // Mark "no face" immediately; the away transition still waits for the
-      // full away threshold. This keeps the timer anchored to when the face
-      // actually disappeared, not when the threshold was first evaluated.
-      candidate = 'no-face'
-    } else if (activityUsable) {
-      if (classification === 'blocked' && activity.idleSeconds < this.thresholds.idleAwaySeconds) {
-        candidate = 'blocked-app'
-      } else if (activity.idleSeconds >= this.thresholds.idleAwaySeconds) {
-        candidate = 'idle'
-      }
-    }
-
-    const good = this.isGoodSignal(facePresent, lookingAtScreen, classification, activityUsable, activity.idleSeconds)
-
-    if (candidate !== null) {
+    if (classification === 'blocked') {
       this.goodSince = null
-      if (this.badReason !== candidate || this.badSince === null) {
-        this.badSince = now
-        this.badReason = candidate
-      }
+      this.badSince ??= now
+      this.badReason = 'blocked-app'
 
-      const elapsed = now - this.badSince
-      const threshold = thresholdFor(candidate, this.thresholds)
-
-      if (elapsed >= threshold && this.state !== 'distracted' && this.state !== 'away') {
-        const evidence: FocusEvidence = {
-          appName: activity.appName,
-          windowTitle: activity.windowTitle,
-          idleSeconds: activity.idleSeconds,
-          gazeAwayMs: candidate === 'gaze-away' ? elapsed : undefined
-        }
-
-        let nextState: FocusState = 'distracted'
-        let eventType: FocusEvent['type'] = 'state-changed'
-        let message: string | undefined
-
-        if (candidate === 'no-face') {
-          nextState = 'away'
-          message = buildAwayMessage()
-        }
-
+      if (
+        now - this.badSince >= this.thresholds.blockedAppAfterMs &&
+        this.state !== 'distracted'
+      ) {
         this.previousState = this.state
-        this.state = nextState
+        this.state = 'distracted'
         events.push(
-          this.event(eventType, now, nextState, {
-            reason: candidate,
-            evidence,
-            message
+          this.event('state-changed', now, 'distracted', {
+            reason: 'blocked-app',
+            evidence
           })
         )
       }
-    } else {
-      this.badSince = null
-      this.badReason = null
+      return events
+    }
 
-      if (good) {
-        this.goodSince ??= now
-        if (
-          now - this.goodSince >= this.thresholds.focusedAfterMs &&
-          this.state !== 'focused' &&
-          this.state !== 'paused'
-        ) {
-          const wasDistracted = this.state === 'distracted'
-          this.previousState = this.state
-          this.state = 'focused'
+    // Anything that is not explicitly blocked counts as study time. The app
+    // lists exist so users can correct the default without us guessing intent.
+    this.badSince = null
+    this.badReason = null
+    this.goodSince ??= now
 
-          if (wasDistracted) {
-            events.push(
-              this.event('returned', now, 'focused', {
-                message: buildReturnedMessage(this.focusedMs)
-              })
-            )
-          }
+    if (now - this.goodSince >= this.thresholds.focusedAfterMs && this.state !== 'focused') {
+      const wasDistracted = this.state === 'distracted'
+      this.previousState = this.state
+      this.state = 'focused'
 
-          events.push(this.event('state-changed', now, 'focused'))
-        }
-      } else {
-        this.goodSince = null
+      if (wasDistracted) {
+        events.push(
+          this.event('returned', now, 'focused', {
+            message: buildReturnedMessage(this.focusedMs)
+          })
+        )
       }
+
+      events.push(this.event('state-changed', now, 'focused', { evidence }))
     }
 
     return events
-  }
-
-  private isGoodSignal(
-    facePresent: boolean | null,
-    lookingAtScreen: boolean | null,
-    classification: ReturnType<typeof classifyApp>,
-    activityUsable: boolean,
-    idleSeconds: number
-  ): boolean {
-    if (classification === 'blocked') return false
-
-    if (facePresent === true) {
-      return lookingAtScreen === true
-    }
-
-    if (facePresent === null && activityUsable) {
-      // Camera unavailable: fall back to "a non-blocked window with recent
-      // input". This is less precise, and the UI says so.
-      return idleSeconds < 120
-    }
-
-    return false
   }
 
   private clearCandidates(): void {
     this.badSince = null
     this.badReason = null
     this.goodSince = null
-    this.noFaceSince = null
   }
 
   private event(

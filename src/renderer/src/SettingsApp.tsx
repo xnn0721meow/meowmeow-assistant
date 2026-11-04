@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { AppSettings, FocusSnapshot, VisionStatus } from '@shared/focus/types'
+import { useEffect, useState } from 'react'
+import type { AppSettings, FocusSnapshot } from '@shared/focus/types'
 import { formatDuration, stateLabel } from '@shared/focus/messages'
 
 const EMPTY_SNAPSHOT: FocusSnapshot = {
@@ -11,19 +11,9 @@ const EMPTY_SNAPSHOT: FocusSnapshot = {
   lastReminderAt: null,
   remindersThisHour: 0,
   snoozedUntil: null,
-  visionAvailable: false,
-  visionStatus: 'idle',
   activityAvailable: false,
   currentApp: null,
   currentTitle: null
-}
-
-const VISION_LABEL: Record<VisionStatus, string> = {
-  idle: '未启用',
-  starting: '正在加载',
-  active: '运行中',
-  unavailable: '不可用',
-  error: '加载失败'
 }
 
 function formatClock(timestamp: number): string {
@@ -62,15 +52,6 @@ export function SettingsApp() {
     }
   }, [])
 
-  const visionHint = useMemo(() => {
-    if (!snapshot.visionStatus) return ''
-    if (snapshot.visionMessage) return snapshot.visionMessage
-    if (snapshot.visionStatus === 'active') return '画面只在内存中处理，不落盘、不上传。'
-    if (snapshot.visionStatus === 'starting') return '首次运行需要下载人脸模型，请保持网络连接。'
-    if (snapshot.visionStatus === 'idle') return '开启后会在本地读取摄像头，用于判断是否在场和是否看向屏幕。'
-    return '当前会退回到前台窗口与键鼠空闲信号。'
-  }, [snapshot.visionMessage, snapshot.visionStatus])
-
   const updateDraft = (patch: Partial<AppSettings>): void => {
     setDraft((current) => (current ? { ...current, ...patch } : current))
     setSaved(false)
@@ -102,7 +83,7 @@ export function SettingsApp() {
       <header className="settings-header">
         <div>
           <h1>喵喵助手</h1>
-          <p>MeowMeow Assistant · 本地优先的学习伴侣。摄像头画面只在内存里变成几个数字。</p>
+          <p>MeowMeow Assistant · 本地优先的学习伴侣。只读取前台窗口和键鼠空闲，不读取画面。</p>
         </div>
         <div className="header-status">
           <span className="status-dot" data-state={snapshot.state} />
@@ -113,31 +94,14 @@ export function SettingsApp() {
 
       <section className="settings-card">
         <div className="card-heading">
-          <h2>感知</h2>
-          <span className="card-hint">本地处理</span>
+          <h2>电脑活动</h2>
+          <span className="card-hint">仅本机</span>
         </div>
 
         <label className="toggle-row">
           <span>
-            <strong>摄像头检测</strong>
-            <small>判断是否在场、是否看向屏幕。建议在固定位置使用。</small>
-          </span>
-          <input
-            type="checkbox"
-            checked={draft.cameraEnabled}
-            onChange={(event) => updateDraft({ cameraEnabled: event.target.checked })}
-          />
-        </label>
-        <div className="status-line">
-          <span className="status-dot" data-state={snapshot.visionStatus === 'active' ? 'focused' : 'unknown'} />
-          <span>视觉：{VISION_LABEL[snapshot.visionStatus]}</span>
-          <span className="muted">{visionHint}</span>
-        </div>
-
-        <label className="toggle-row">
-          <span>
-            <strong>前台窗口与键鼠空闲</strong>
-            <small>读取当前窗口标题和空闲时长，用来辅助判断分心。</small>
+            <strong>跟踪前台窗口与键鼠空闲</strong>
+            <small>读取当前窗口的进程名/标题和系统空闲秒数，用来判断你在用什么、是否还在操作。</small>
           </span>
           <input
             type="checkbox"
@@ -155,6 +119,10 @@ export function SettingsApp() {
               : ''}
           </span>
         </div>
+        <p className="field-hint">
+          只读取进程名、窗口标题和键鼠空闲秒数。不截图、不读取画面、不上传。
+          分心应用连续停留达到阈值会提醒；空闲超过一段时间会暂停计时。
+        </p>
       </section>
 
       <section className="settings-card">

@@ -47,8 +47,8 @@ while ($true) {
  * Foreground-window probe.
  *
  * It intentionally avoids a native Node addon: a small PowerShell process is
- * easier to ship and to audit. Windows-only for now; other platforms fall
- * back to "activity unavailable" and the camera remains the primary signal.
+ * easier to ship and to audit. Windows-only for now; other platforms report
+ * "activity unavailable" and the mascot simply stops guessing.
  */
 export class ActivityProbe {
   private process: ChildProcessWithoutNullStreams | null = null

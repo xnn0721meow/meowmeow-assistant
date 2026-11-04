@@ -1,30 +1,8 @@
 export type FocusState = 'unknown' | 'focused' | 'distracted' | 'away' | 'paused'
 
-export type DistractionReason = 'blocked-app' | 'gaze-away' | 'idle' | 'no-face' | 'unknown'
+export type DistractionReason = 'blocked-app' | 'idle' | 'unknown'
 
 export type ReminderAction = 'returned' | 'snooze' | 'end-session' | 'dismiss'
-
-export type VisionStatus = 'idle' | 'starting' | 'active' | 'unavailable' | 'error'
-
-export interface Reminder {
-  reason: DistractionReason
-  title: string
-  body: string
-  evidence: FocusEvidence
-}
-
-export interface VisionSignal {
-  /** Whether a face is visible in the current frame. */
-  facePresent: boolean
-  /** Horizontal attention: face roughly facing the screen. */
-  lookingAtScreen: boolean
-  eyesOpen: boolean
-  /** Head rotation in degrees, kept for future posture features. */
-  yaw: number
-  pitch: number
-  confidence: number
-  timestamp: number
-}
 
 export interface ActivitySignal {
   appName: string | null
@@ -36,15 +14,20 @@ export interface ActivitySignal {
 
 export interface SignalSnapshot {
   timestamp: number
-  vision: VisionSignal | null
   activity: ActivitySignal
 }
 
 export interface FocusEvidence {
   appName?: string | null
   windowTitle?: string | null
-  gazeAwayMs?: number
   idleSeconds?: number
+}
+
+export interface Reminder {
+  reason: DistractionReason
+  title: string
+  body: string
+  evidence: FocusEvidence
 }
 
 export interface FocusEvent {
@@ -68,16 +51,12 @@ export interface FocusSnapshot {
   lastReminderAt: number | null
   remindersThisHour: number
   snoozedUntil: number | null
-  visionAvailable: boolean
-  visionStatus: VisionStatus
-  visionMessage?: string
   activityAvailable: boolean
   currentApp: string | null
   currentTitle: string | null
 }
 
 export interface AppSettings {
-  cameraEnabled: boolean
   activityTrackingEnabled: boolean
   reminderSensitivity: 'relaxed' | 'normal' | 'strict'
   maxRemindersPerHour: number

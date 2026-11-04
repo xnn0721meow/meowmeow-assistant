@@ -1,56 +1,32 @@
-import type { AppSettings, DistractionReason } from './types'
+import type { AppSettings } from './types'
 
 export interface FocusThresholds {
-  distractedAfterMs: number
+  /** How long a blocked app must stay in front before it counts as distraction. */
   blockedAppAfterMs: number
-  gazeAwayAfterMs: number
+  /** How long a non-blocked app with recent input must stay in front before it counts as focus. */
   focusedAfterMs: number
-  awayAfterMs: number
-  idleAwaySeconds: number
+  /** System-wide idle time that pauses the session. */
+  awayAfterSeconds: number
 }
 
 const BASE: Record<AppSettings['reminderSensitivity'], FocusThresholds> = {
   relaxed: {
-    distractedAfterMs: 90_000,
     blockedAppAfterMs: 45_000,
-    gazeAwayAfterMs: 90_000,
     focusedAfterMs: 15_000,
-    awayAfterMs: 180_000,
-    idleAwaySeconds: 600
+    awayAfterSeconds: 600
   },
   normal: {
-    distractedAfterMs: 60_000,
     blockedAppAfterMs: 20_000,
-    gazeAwayAfterMs: 60_000,
     focusedAfterMs: 10_000,
-    awayAfterMs: 120_000,
-    idleAwaySeconds: 300
+    awayAfterSeconds: 300
   },
   strict: {
-    distractedAfterMs: 45_000,
     blockedAppAfterMs: 10_000,
-    gazeAwayAfterMs: 30_000,
     focusedAfterMs: 8_000,
-    awayAfterMs: 90_000,
-    idleAwaySeconds: 180
+    awayAfterSeconds: 180
   }
 }
 
 export function thresholdsFor(settings: AppSettings): FocusThresholds {
   return BASE[settings.reminderSensitivity] ?? BASE.normal
-}
-
-export function thresholdFor(reason: DistractionReason, thresholds: FocusThresholds): number {
-  switch (reason) {
-    case 'blocked-app':
-      return thresholds.blockedAppAfterMs
-    case 'gaze-away':
-      return thresholds.gazeAwayAfterMs
-    case 'idle':
-      return thresholds.distractedAfterMs
-    case 'no-face':
-      return thresholds.awayAfterMs
-    default:
-      return thresholds.distractedAfterMs
-  }
 }

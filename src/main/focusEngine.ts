@@ -9,13 +9,10 @@ import type {
   FocusEvent,
   FocusSnapshot,
   ReminderAction,
-  SignalSnapshot,
-  VisionSignal,
-  VisionStatus
+  SignalSnapshot
 } from '@shared/focus/types'
 import type { ActivitySample } from './activityProbe'
 
-const VISION_STALE_MS = 6_000
 const SNOOZE_MS = 5 * 60_000
 
 export class FocusEngine extends EventEmitter {
@@ -24,8 +21,6 @@ export class FocusEngine extends EventEmitter {
   private settings: AppSettings
   private timer: NodeJS.Timeout | null = null
 
-  private latestVision: VisionSignal | null = null
-  private lastVisionAt = 0
   private activity: ActivitySignal = {
     appName: null,
     windowTitle: null,
@@ -33,10 +28,8 @@ export class FocusEngine extends EventEmitter {
     available: false,
     timestamp: 0
   }
-  private activityAvailable = false
+  private activityProbeAvailable = false
 
-  private visionStatus: VisionStatus = 'idle'
-  private visionMessage: string | undefined
   private lastReminderAt: number | null = null
   private snoozedUntil: number | null = null
 
@@ -65,40 +58,18 @@ export class FocusEngine extends EventEmitter {
     this.timer = null
   }
 
-  ingestVision(signal: VisionSignal): void {
-    if (!this.settings.cameraEnabled) return
-    this.latestVision = signal
-    this.lastVisionAt = signal.timestamp
-    if (this.visionStatus !== 'active') {
-      this.visionStatus = 'active'
-      this.visionMessage = undefined
-      this.emit('vision-status', { status: this.visionStatus })
-    }
-  }
-
-  reportVisionStatus(status: VisionStatus, message?: string): void {
-    this.visionStatus = status
-    this.visionMessage = message
-    if (status !== 'active') {
-      this.latestVision = null
-      this.lastVisionAt = 0
-    }
-    this.emit('vision-status', { status, message })
-    this.emitSnapshot()
-  }
-
   ingestActivity(sample: ActivitySample): void {
     this.activity = {
       appName: sample.appName,
       windowTitle: sample.windowTitle,
       idleSeconds: this.activity.idleSeconds,
-      available: this.activityAvailable && this.settings.activityTrackingEnabled,
+      available: this.activityProbeAvailable && this.settings.activityTrackingEnabled,
       timestamp: sample.timestamp
     }
   }
 
   setActivityAvailable(available: boolean): void {
-    this.activityAvailable = available
+    this.activityProbeAvailable = available
     this.activity.available = available && this.settings.activityTrackingEnabled
     this.emitSnapshot()
   }
@@ -107,19 +78,7 @@ export class FocusEngine extends EventEmitter {
     this.settings = settings
     this.machine.applySettings(settings)
     this.budget.setMaxPerHour(settings.maxRemindersPerHour)
-
-    if (!settings.cameraEnabled) {
-      this.latestVision = null
-      this.lastVisionAt = 0
-      this.visionStatus = 'idle'
-      this.visionMessage = '摄像头已关闭'
-    }
-
-    if (!settings.activityTrackingEnabled) {
-      this.activityAvailable = false
-      this.activity.available = false
-    }
-
+    this.activity.available = this.activityProbeAvailable && settings.activityTrackingEnabled
     this.emitSnapshot()
   }
 
@@ -162,11 +121,6 @@ export class FocusEngine extends EventEmitter {
       this.snoozedUntil = null
     }
 
-    const visionFresh =
-      this.settings.cameraEnabled &&
-      this.latestVision !== null &&
-      now - this.lastVisionAt < VISION_STALE_MS
-
     return {
       state: this.machine.getState(),
       previousState: this.machine.getPreviousState(),
@@ -176,12 +130,7 @@ export class FocusEngine extends EventEmitter {
       lastReminderAt: this.lastReminderAt,
       remindersThisHour: this.budget.count(now),
       snoozedUntil: this.snoozedUntil,
-      visionAvailable: visionFresh && this.visionStatus === 'active',
-      visionStatus: this.settings.cameraEnabled ? this.visionStatus : 'idle',
-      visionMessage: this.settings.cameraEnabled
-        ? this.visionMessage
-        : '摄像头已关闭，仅使用窗口与空闲信号',
-      activityAvailable: this.activityAvailable && this.settings.activityTrackingEnabled,
+      activityAvailable: this.activityProbeAvailable && this.settings.activityTrackingEnabled,
       currentApp: this.activity.appName,
       currentTitle: this.activity.windowTitle
     }
@@ -189,20 +138,15 @@ export class FocusEngine extends EventEmitter {
 
   private tick(): void {
     const now = Date.now()
-    const vision =
-      this.settings.cameraEnabled && this.latestVision !== null && now - this.lastVisionAt < VISION_STALE_MS
-        ? this.latestVision
-        : null
-
     const activity: ActivitySignal = {
       ...this.activity,
       idleSeconds: powerMonitor.getSystemIdleTime(),
-      available: this.activityAvailable && this.settings.activityTrackingEnabled,
+      available: this.activityProbeAvailable && this.settings.activityTrackingEnabled,
       timestamp: now
     }
     this.activity = activity
 
-    const snapshot: SignalSnapshot = { timestamp: now, vision, activity }
+    const snapshot: SignalSnapshot = { timestamp: now, activity }
     const events = this.machine.update(snapshot)
 
     for (const event of events) {

@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path'
 import type { AppSettings } from '@shared/focus/types'
 
 const DEFAULTS: AppSettings = {
-  cameraEnabled: true,
   activityTrackingEnabled: true,
   reminderSensitivity: 'normal',
   maxRemindersPerHour: 3,
@@ -85,7 +84,6 @@ export function sanitizeSettings(input: Partial<AppSettings>): AppSettings {
     : 3
 
   return {
-    cameraEnabled: Boolean(merged.cameraEnabled),
     activityTrackingEnabled: Boolean(merged.activityTrackingEnabled),
     reminderSensitivity: sensitivity,
     maxRemindersPerHour: maxReminders,

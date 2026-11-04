@@ -1,7 +1,7 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, session, shell, Tray } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import type { AppSettings, FocusEvent, FocusSnapshot, ReminderAction, VisionSignal, VisionStatus } from '@shared/focus/types'
+import type { AppSettings, FocusEvent, FocusSnapshot, ReminderAction } from '@shared/focus/types'
 import { IPC } from '@shared/ipc'
 import { FocusEngine } from './focusEngine'
 import { ActivityProbe } from './activityProbe'
@@ -276,16 +276,6 @@ function registerIpc(): void {
   ipcMain.on(IPC.focusReset, () => engine?.resetSession())
   ipcMain.on(IPC.focusSetPaused, (_event, paused: boolean) => engine?.setPaused(Boolean(paused)))
 
-  ipcMain.on(IPC.visionSignal, (_event, signal: VisionSignal) => {
-    if (!signal || typeof signal.timestamp !== 'number') return
-    engine?.ingestVision(signal)
-  })
-
-  ipcMain.on(IPC.visionStatus, (_event, payload: { status: VisionStatus; message?: string }) => {
-    if (!payload || !payload.status) return
-    engine?.reportVisionStatus(payload.status, payload.message)
-  })
-
   ipcMain.on(IPC.windowSetInteractive, (_event, interactive: boolean) => {
     if (!avatarWindow || avatarWindow.isDestroyed()) return
     avatarWindow.setIgnoreMouseEvents(!interactive, { forward: true })
@@ -308,23 +298,12 @@ async function bootstrap(): Promise<void> {
 
   app.setAppUserModelId('dev.meowmeow.assistant')
 
-  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    callback(permission === 'media')
-  })
-  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    return permission === 'media'
-  })
-
   engine = new FocusEngine(settings)
   engine.on('event', (event: FocusEvent) => {
     broadcast(IPC.focusEvent, event)
   })
   engine.on('snapshot', (snapshot: FocusSnapshot) => {
     broadcast(IPC.focusSnapshotChanged, snapshot)
-  })
-  engine.on('vision-status', (payload: { status: VisionStatus; message?: string }) => {
-    broadcast(IPC.visionStatusChanged, payload)
-    rebuildTrayMenu()
   })
 
   registerIpc()

@@ -16,7 +16,6 @@ covered by that license.
 
 ## Other dependencies
 
-- MediaPipe Tasks Vision — Apache License 2.0
 - PixiJS — MIT
 - untitled-pixi-live2d-engine — see its package license
 - React / React DOM — MIT

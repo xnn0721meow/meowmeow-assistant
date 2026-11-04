@@ -2,10 +2,9 @@ import type { FocusState } from '@shared/focus/types'
 
 interface MascotProps {
   state: FocusState
-  cameraUnavailable?: boolean
 }
 
-export function Mascot({ state, cameraUnavailable = false }: MascotProps) {
+export function Mascot({ state }: MascotProps) {
   const away = state === 'away'
   const distracted = state === 'distracted'
   const paused = state === 'paused'
@@ -15,7 +14,7 @@ export function Mascot({ state, cameraUnavailable = false }: MascotProps) {
       className="mascot-svg"
       viewBox="0 0 200 200"
       role="img"
-      aria-label={`学习伴侣状态：${state}`}
+      aria-label={`喵喵助手状态：${state}`}
     >
       <ellipse cx="100" cy="184" rx="54" ry="7" className="mascot-shadow" />
 
@@ -81,13 +80,6 @@ export function Mascot({ state, cameraUnavailable = false }: MascotProps) {
         {distracted && (
           <g className="mascot-sweat">
             <path d="M151 91 C151 91 145 99 145 104 C145 109 150 111 153 108 C157 104 153 96 151 91 Z" />
-          </g>
-        )}
-
-        {cameraUnavailable && (
-          <g className="mascot-camera-badge">
-            <circle cx="160" cy="64" r="10" />
-            <path d="M155 59 L165 69 M165 59 L155 69" />
           </g>
         )}
       </g>

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, type FocusMascotApi } from '@shared/ipc'
-import type { AppSettings, FocusEvent, FocusSnapshot, VisionSignal, VisionStatus } from '@shared/focus/types'
+import type { AppSettings, FocusEvent, FocusSnapshot } from '@shared/focus/types'
 
 function subscribe<T>(channel: string, callback: (payload: T) => void): () => void {
   const listener = (_event: Electron.IpcRendererEvent, payload: T): void => callback(payload)
@@ -16,9 +16,6 @@ const api: FocusMascotApi = {
   getSnapshot: () => ipcRenderer.invoke(IPC.focusGetSnapshot),
   resetSession: () => ipcRenderer.send(IPC.focusReset),
   setPaused: (paused: boolean) => ipcRenderer.send(IPC.focusSetPaused, paused),
-  sendVision: (signal: VisionSignal) => ipcRenderer.send(IPC.visionSignal, signal),
-  reportVisionStatus: (status: VisionStatus, message?: string) =>
-    ipcRenderer.send(IPC.visionStatus, { status, message }),
   setInteractive: (interactive: boolean) => ipcRenderer.send(IPC.windowSetInteractive, interactive),
   openSettings: () => ipcRenderer.send(IPC.windowOpenSettings),
   closeSettings: () => ipcRenderer.send(IPC.windowCloseSettings),
@@ -28,9 +25,7 @@ const api: FocusMascotApi = {
   onSnapshot: (callback: (snapshot: FocusSnapshot) => void) =>
     subscribe(IPC.focusSnapshotChanged, callback),
   onSettingsChanged: (callback: (settings: AppSettings) => void) =>
-    subscribe(IPC.settingsChanged, callback),
-  onVisionStatus: (callback: (status: { status: VisionStatus; message?: string }) => void) =>
-    subscribe(IPC.visionStatusChanged, callback)
+    subscribe(IPC.settingsChanged, callback)
 }
 
 contextBridge.exposeInMainWorld('focusMascot', api)
